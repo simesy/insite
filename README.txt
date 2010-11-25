@@ -25,8 +25,9 @@ Aegir is updated. If everything is working, the {insite_variable} table should f
 up on subsequent Aegir cron runs. Then the search should work!
 
 CONSIDERATIONS:
--- Doesn't show stored variable values, only after bootstrap.
+-- Doesn't show stored variable values, only after bootstrap. Which is prolly just fine.
 -- Assume unscaleable, only trialed on Aegir with ~20 sites.
 -- Currently ignoring arrays and object variables.
--- Sites are analysed every 24 hours, hardcoded into sql.
+-- Sites currently are analysed every 24 hours, hardcoded into sql.
+-- Not tested on a multiserver environment, so it probably won't work.
 
