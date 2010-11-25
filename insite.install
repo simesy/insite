@@ -1,0 +1,63 @@
+<?php
+
+function insite_schema() {
+
+	$schema['insite_variable'] = array(
+		'description' => t('Store variable references from sites in Hostmaster.'),
+		'fields' => array(
+			'nid' => array(
+				'description' => t('Site nid'),
+				'type' => 'int',
+				'not null' => TRUE,
+			),
+			'name' => array(
+				'description' => t('Variable name'),
+				'type' => 'varchar',
+				'length' => '255',
+				'not null' => TRUE,
+			),
+			'value' => array(
+				'description' => t('Variable value'),
+				'type' => 'text',
+				'size' => 'big',
+				'not null' => TRUE,
+			),
+		),
+	);
+
+	$schema['insite_status'] = array(
+		'description' => t('Information about the last time the each site was incited.'),
+		'fields' => array(
+			'nid' => array(
+				'description' => t('Site nid'),
+				'type' => 'int',
+				'not null' => FALSE,
+			),
+			'last_run' => array(
+				'description' => t('Timestamp of last run'),
+				'type' => 'int',
+				'not null' => FALSE,
+			),
+		),
+		'unique keys' => array(
+			'nid' => array('nid')
+		),
+	);
+
+  return $schema;
+}
+
+/**
+ * Implementation of hook_install
+ */
+function insite_install() {
+  drupal_install_schema('insite');
+}
+
+
+/**
+ * Implementation of hook_uninstall
+ */
+function insite_uninstall() {
+  drupal_uninstall_schema('insite');
+}
