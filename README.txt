@@ -21,7 +21,7 @@ searched at /insite/variable-search.
 
 To install, install this module in the main Hostmaster platform. Remember to
 put it in sites/example.com/modules if you want the module to follow along when
-Aegir is updated. If everything is working, the 'insite_variable' should fill
+Aegir is updated. If everything is working, the {insite_variable} table should fill
 up on subsequent Aegir cron runs. Then the search should work!
 
 CONSIDERATIONS:
