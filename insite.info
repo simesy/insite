@@ -1,0 +1,5 @@
+name = Insite
+description = Site Insight. Open wide, look inside.
+package = Aegir
+
+core = 6.x

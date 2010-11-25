@@ -1,0 +1,223 @@
+<?php
+
+/**
+ * Implementation of hook_menu
+ */
+function insite_menu() {
+  $items = array();
+  $items['insite/variable-search'] = array(
+    'title' => 'Variable search',
+    'description' => 'Check a variable across all sites under Aegir management.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('insite_variable_search_form'),
+    'access arguments' => array('administer hosting'),
+  );  
+  $items['insite/autocomplete/variable'] = array(
+    'title' => t('variable autocomplete'),
+    'page callback' => 'insite_autocomplete_variable',
+    'access arguments' => array('administer hosting'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implementation of hook_menu
+ */
+function insite_variable_search_form($form_state) {
+  $search = arg(2);
+
+  $form = array();
+  $form['search'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Variable name',
+    '#autocomplete_path' => 'insite/autocomplete/variable',
+    '#default_value' => check_plain($search),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Search',
+  );
+
+  // Search for arg(2) if it's there.
+  if ($search) {
+    $result = db_query("SELECT n.nid, title, v.name, v.value FROM {node} n INNER JOIN {insite_variable} v ON n.nid = v.nid WHERE v.name LIKE '%%%s%%' ORDER BY v.name, n.title, v.value", $search);
+
+    $last_var = '';
+    $rows = array();
+    while ($var = db_fetch_object($result)) {
+      // Display var name on own row.
+      if ($last_var != $var->name) {
+        $rows[] = array('data' => array('data' => '<h3>' . check_plain($var->name) . '</h3>', 'attributes' => array('colspan' => 2,)));
+        $last_var = $var->name;
+      }
+      // Add this variable found as a row.
+      $rows[] = array('data' => array(check_plain($var->title), check_plain($var->value)));
+    }
+    if (count($rows)) {
+      $output = theme('table', array(), $rows);
+    }
+    else {
+      $output = '<p>' . t('No sites were found to use the variable !varname.', $search) . '</p>';
+    }
+    
+    // Add the output to the form.
+    $form['result'] = array(
+      '#value' => $output,
+    );
+  }
+
+  return $form;
+}
+
+/**
+ * Submit handler for insite_variable_search_form()
+ */
+function insite_variable_search_form_submit($form, &$form_state) {
+  $form_state['redirect'] = 'insite/variable-search/' . $form_state['values']['search'];
+}
+
+/**
+ * Theme function for insite_variable_search_form();
+ */
+function theme_insite_variable_search_form($form) {
+  $output = '<table><tr><td>' . drupal_render($form['search']) . '</td><td>' . drupal_render($form['submit']) . '</td></tr></table>';
+  $output .= drupal_render($form);
+  return $output;
+}
+
+
+/**
+ * Autocomplete callback for variable name look up.
+ */
+function insite_autocomplete_variable($string) {
+  $matches = array();
+  $result = db_query_range("SELECT distinct name FROM {insite_variable} WHERE LOWER(name) LIKE LOWER('%s%%')", $string, 0, 10);
+  while ($var = db_fetch_object($result)) {
+    $matches[$var->name] = check_plain($var->name);
+  }
+  print drupal_to_js($matches);
+  exit();
+}
+
+/** 
+ * Implementation of hook_theme
+ */
+function insite_theme() {
+  return array(
+    'insite_variable_search_form' => array(
+      'arguments' => array(),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// hosting/drush integration that populates the insite_variable table.
+
+/**
+ * Implementation of hook_hosting_queues
+ *
+ * Return a list of queues that this module needs to manage.
+ */
+function insite_hosting_queues() {
+  $queue['insite'] = array(
+    'name' => t('Insite queue'),
+    'description' => t('Process the queue of short-sighted insight.'),
+    'type' => 'serial',  # run queue sequentially. always with the same parameters.
+    'frequency' => strtotime("1 minute", 0),
+    'items' => 1,
+    'total_items' => 1,
+    'singular' => t('pwn'),
+    'plural' => t('pwnage'),
+    'running_items' => 0,
+  );
+  return $queue;
+}
+
+/**
+ * We're pimping the hosting queue so our callback is named thus.
+ */ 
+function hosting_insite_queue($count) {
+	$return = array(); $code = null;
+
+  // List of sites we haven't updated in 24 hours.
+  // Truncate insite_status to reprocess immediately.
+	$sql = "SELECT n.nid, n.title, last_run
+	        FROM {node} n
+	        LEFT JOIN {hosting_site} s
+	          ON n.vid = s.vid
+	        LEFT JOIN {insite_status} i
+	          ON n.nid = i.nid
+	        WHERE type='site' AND s.status != -2
+	        AND (last_run IS NULL OR (last_run + 86400) < UNIX_TIMESTAMP())
+	        ORDER BY last_run DESC
+	        LIMIT 5
+	        ";
+
+  $result = db_queryd($sql);
+  while ($site = db_fetch_object($result)) {
+  drush_print($site->nid);
+  	// Note to the reader, this is a drupal module but we're actually 
+  	// extending the hostmaster queue system. So this code is going to
+  	// be running as 'aegir' in a CLI environment.
+
+    // Harvest two sets of variables: in storage and bootstrapped.
+    // We do this as two separate drush calls even though it could
+    // be done as one with the right php-eval argument and thus be
+    // more efficient. Keeping it separate for whatever reason.
+
+    // TODO: Considering my options here.
+    // Harvest out the variables in the database table.
+    // insite_inspect_variables_stored($site);
+
+    // Harvest out the variables after bootstrap, which
+    // may differ from the variables stored in the database.
+    insite_inspect_variables_bootstrapped($site);
+    
+    // Update the status table to indicate we've recently parsed this site.
+    db_query('DELETE FROM {insite_status} WHERE nid = %d', $site->nid);
+    db_query('INSERT INTO {insite_status} (nid, last_run) VALUES (%d, %d)', $site->nid, time());
+  }
+}
+
+/**
+ * Inspect the live, initialised variables of a site and store them locally in hostmaster.
+ */
+function insite_inspect_variables_bootstrapped($site) {
+
+	// We are in shell as aegir (I hope) and we can get some stuff.
+
+	// Get the correct alias for the site.
+	$site_name = hosting_context_name($site->nid);
+
+	// Build the drush command that will gather the variables of the target site.    
+	// Can't use 'drush variable-get' because even with the --backend option this
+	// command outputs the variables in human readable.
+	$eval = '\'global $conf; print serialize($conf);\'';
+	$cmd = sprintf("%s %s php-eval %s --backend", DRUSH_COMMAND, $site_name, $eval);
+
+	// Execute drush command and grab the output.
+	dlm("insite.module executing: $cmd"); 
+	exec($cmd, $return, $code);
+
+	// Parse the output, first from drush --backend ...
+	$return = drush_backend_parse_output($return[0], false);
+	// ... then unserialize it.
+	$output = unserialize($return['output']);
+
+	// Clear out the old values ready for new values.
+	// TODO: compare the old values to issue a warning that something has changed.
+	db_query("DELETE FROM {insite_variable} WHERE nid = %d", $site->nid);
+
+	foreach ($output as $name => $value) {
+		// For simplicity just store simple data types.
+		// We want to pick up performance settings, etc.
+		if (!is_array($value) && !is_object($value)) {
+			db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value); 
+		}
+	} 
+}
+ 
+ 
+ 
+ 
