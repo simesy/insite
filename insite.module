@@ -52,7 +52,12 @@ function insite_variable_search_form($form_state) {
         $last_var = $var->name;
       }
       // Add this variable found as a row.
-      $rows[] = array('data' => array(check_plain($var->title), check_plain($var->value)));
+      // TODO: Right way to get the url - title??
+      // Also, append a variable for an alternative login path (specific to my use-case where I want to hit a specific path first).
+      variable_set('insite_hack_url', '/auto-openid');
+      $url = 'http://' . check_plain($var->title) . variable_get('insite_hack_url', '');
+      $l = l(check_plain($var->title), $url , array('attributes' => array('target' => '_BLANK')));
+      $rows[] = array('data' => array($l, check_plain($var->value)));
     }
     if (count($rows)) {
       $output = theme('table', array(), $rows);
@@ -85,7 +90,6 @@ function theme_insite_variable_search_form($form) {
   $output .= drupal_render($form);
   return $output;
 }
-
 
 /**
  * Autocomplete callback for variable name look up.
