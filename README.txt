@@ -31,3 +31,6 @@ CONSIDERATIONS:
 -- Sites currently are analysed every 24 hours, hardcoded into sql.
 -- Not tested on a multiserver environment, so it probably won't work.
 
+FEATURE IDEAS:
+-- Allow administrator to push variable changes to one or more sites.
+-- User-defined "Watch" queries - run this query against sites and store results.
