@@ -198,28 +198,25 @@ function insite_inspect_variables_bootstrapped($site) {
   // Build the drush command that will gather the variables of the target site.
   // Can't use 'drush variable-get' because even with the --backend option this
   // command outputs the variables in human readable.
-  $eval = '\'global $conf; print serialize($conf);\'';
-  $cmd = sprintf("%s %s php-eval %s --backend", DRUSH_COMMAND, $site_name, $eval);
+  $eval = 'global $conf; print serialize($conf);';
 
-  // Execute drush command and grab the output.
-  dlm("insite.module executing: $cmd");
-  exec($cmd, $return, $code);
+  if ($cmd = provision_backend_invoke($site_name, "php-eval", array($eval))) {
 
-  // Parse the output, first from drush --backend ...
-  $return = drush_backend_parse_output($return[0], false);
-  // ... then unserialize it.
-  $output = unserialize($return['output']);
+    // ... then unserialize it.
+    $output = unserialize($cmd['output']);
 
-  // Clear out the old values ready for new values.
-  // TODO: compare the old values to issue a warning that something has changed.
-  db_query("DELETE FROM {insite_variable} WHERE nid = %d", $site->nid);
+    if (is_array($output)) {
 
-  if (is_array($output)) {
-    foreach ($output as $name => $value) {
-      // For simplicity just store simple data types.
-      // We want to pick up performance settings, etc.
-      if (!is_array($value) && !is_object($value)) {
-        db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
+    // Clear out the old values ready for new values.
+    // TODO: compare the old values to issue a warning that something has changed.
+    db_query("DELETE FROM {insite_variable} WHERE nid = %d", $site->nid);
+
+      foreach ($output as $name => $value) {
+        // For simplicity just store simple data types.
+        // We want to pick up performance settings, etc.
+        if (!is_array($value) && !is_object($value)) {
+          db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
+        }
       }
     }
   }
