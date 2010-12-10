@@ -52,7 +52,7 @@ function insite_variable_search_form($form_state) {
         $last_var = $var->name;
       }
       // Add this variable found as a row.
-      // TODO: Right way to get the url - title??
+      // TODO: Right way to get the url - title?? @see: _hosting_site_goto_link()
       // Also, append a variable for an alternative login path (specific to my use-case where I want to hit a specific path first).
       variable_set('insite_hack_url', '/auto-openid');
       $url = 'http://' . check_plain($var->title) . variable_get('insite_hack_url', '');
