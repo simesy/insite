@@ -142,25 +142,26 @@ function insite_hosting_queues() {
  * We're pimping the hosting queue so our callback is named thus.
  */
 function hosting_insite_queue($count) {
-	$return = array(); $code = null;
+  $return = array();
+  $code = null;
 
   // List of sites we haven't updated in 24 hours.
   // Truncate insite_status to reprocess immediately.
-	$sql = "SELECT n.nid, n.title, last_run
-	        FROM {node} n
-	        LEFT JOIN {hosting_site} s
-	          ON n.vid = s.vid
-	        LEFT JOIN {insite_status} i
-	          ON n.nid = i.nid
-	        WHERE type='site' AND (s.status = 1 OR s.status = -1)
-	        AND (last_run IS NULL OR (last_run + 86400) < UNIX_TIMESTAMP())
-	        ORDER BY last_run DESC
-	        LIMIT 5
-	        ";
+  $sql = "SELECT n.nid, n.title, last_run
+          FROM {node} n
+          LEFT JOIN {hosting_site} s
+            ON n.vid = s.vid
+          LEFT JOIN {insite_status} i
+            ON n.nid = i.nid
+          WHERE type='site' AND (s.status = 1 OR s.status = -1)
+          AND (last_run IS NULL OR (last_run + 86400) < UNIX_TIMESTAMP())
+          ORDER BY last_run DESC
+          LIMIT 5
+          ";
 
   $result = db_query($sql);
   while ($site = db_fetch_object($result)) {
-  drush_print($site->nid);
+    drush_print($site->nid);
   	// Note to the reader, this is a drupal module but we're actually
   	// extending the hostmaster queue system. So this code is going to
   	// be running as 'aegir' in a CLI environment.
@@ -189,35 +190,35 @@ function hosting_insite_queue($count) {
  */
 function insite_inspect_variables_bootstrapped($site) {
 
-	// We are in shell as aegir (I hope) and we can get some stuff.
+  // We are in shell as aegir (I hope) and we can get some stuff.
 
-	// Get the correct alias for the site.
-	$site_name = hosting_context_name($site->nid);
+  // Get the correct alias for the site.
+  $site_name = hosting_context_name($site->nid);
 
-	// Build the drush command that will gather the variables of the target site.
-	// Can't use 'drush variable-get' because even with the --backend option this
-	// command outputs the variables in human readable.
-	$eval = '\'global $conf; print serialize($conf);\'';
-	$cmd = sprintf("%s %s php-eval %s --backend", DRUSH_COMMAND, $site_name, $eval);
+  // Build the drush command that will gather the variables of the target site.
+  // Can't use 'drush variable-get' because even with the --backend option this
+  // command outputs the variables in human readable.
+  $eval = '\'global $conf; print serialize($conf);\'';
+  $cmd = sprintf("%s %s php-eval %s --backend", DRUSH_COMMAND, $site_name, $eval);
 
-	// Execute drush command and grab the output.
-	dlm("insite.module executing: $cmd");
-	exec($cmd, $return, $code);
+  // Execute drush command and grab the output.
+  dlm("insite.module executing: $cmd");
+  exec($cmd, $return, $code);
 
-	// Parse the output, first from drush --backend ...
-	$return = drush_backend_parse_output($return[0], false);
-	// ... then unserialize it.
-	$output = unserialize($return['output']);
+  // Parse the output, first from drush --backend ...
+  $return = drush_backend_parse_output($return[0], false);
+  // ... then unserialize it.
+  $output = unserialize($return['output']);
 
-	// Clear out the old values ready for new values.
-	// TODO: compare the old values to issue a warning that something has changed.
-	db_query("DELETE FROM {insite_variable} WHERE nid = %d", $site->nid);
+  // Clear out the old values ready for new values.
+  // TODO: compare the old values to issue a warning that something has changed.
+  db_query("DELETE FROM {insite_variable} WHERE nid = %d", $site->nid);
 
-	foreach ($output as $name => $value) {
-		// For simplicity just store simple data types.
-		// We want to pick up performance settings, etc.
-		if (!is_array($value) && !is_object($value)) {
-			db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
-		}
-	}
+  foreach ($output as $name => $value) {
+    // For simplicity just store simple data types.
+    // We want to pick up performance settings, etc.
+    if (!is_array($value) && !is_object($value)) {
+      db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
+    }
+  }
 }
