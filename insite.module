@@ -214,11 +214,13 @@ function insite_inspect_variables_bootstrapped($site) {
   // TODO: compare the old values to issue a warning that something has changed.
   db_query("DELETE FROM {insite_variable} WHERE nid = %d", $site->nid);
 
-  foreach ($output as $name => $value) {
-    // For simplicity just store simple data types.
-    // We want to pick up performance settings, etc.
-    if (!is_array($value) && !is_object($value)) {
-      db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
+  if (is_array($output)) {
+    foreach ($output as $name => $value) {
+      // For simplicity just store simple data types.
+      // We want to pick up performance settings, etc.
+      if (!is_array($value) && !is_object($value)) {
+        db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
+      }
     }
   }
 }
