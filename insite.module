@@ -158,7 +158,7 @@ function hosting_insite_queue($count) {
 	        LIMIT 5
 	        ";
 
-  $result = db_queryd($sql);
+  $result = db_query($sql);
   while ($site = db_fetch_object($result)) {
   drush_print($site->nid);
   	// Note to the reader, this is a drupal module but we're actually
