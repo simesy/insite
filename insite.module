@@ -11,7 +11,7 @@ function insite_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('insite_variable_search_form'),
     'access arguments' => array('administer hosting'),
-  );  
+  );
   $items['insite/autocomplete/variable'] = array(
     'title' => t('variable autocomplete'),
     'page callback' => 'insite_autocomplete_variable',
@@ -65,7 +65,7 @@ function insite_variable_search_form($form_state) {
     else {
       $output = '<p>' . t('No sites were found to use the variable !varname.', $search) . '</p>';
     }
-    
+
     // Add the output to the form.
     $form['result'] = array(
       '#value' => $output,
@@ -104,7 +104,7 @@ function insite_autocomplete_variable($string) {
   exit();
 }
 
-/** 
+/**
  * Implementation of hook_theme
  */
 function insite_theme() {
@@ -140,7 +140,7 @@ function insite_hosting_queues() {
 
 /**
  * We're pimping the hosting queue so our callback is named thus.
- */ 
+ */
 function hosting_insite_queue($count) {
 	$return = array(); $code = null;
 
@@ -152,7 +152,7 @@ function hosting_insite_queue($count) {
 	          ON n.vid = s.vid
 	        LEFT JOIN {insite_status} i
 	          ON n.nid = i.nid
-	        WHERE type='site' AND s.status != -2
+	        WHERE type='site' AND (s.status = 1 OR s.status = -1)
 	        AND (last_run IS NULL OR (last_run + 86400) < UNIX_TIMESTAMP())
 	        ORDER BY last_run DESC
 	        LIMIT 5
@@ -161,7 +161,7 @@ function hosting_insite_queue($count) {
   $result = db_queryd($sql);
   while ($site = db_fetch_object($result)) {
   drush_print($site->nid);
-  	// Note to the reader, this is a drupal module but we're actually 
+  	// Note to the reader, this is a drupal module but we're actually
   	// extending the hostmaster queue system. So this code is going to
   	// be running as 'aegir' in a CLI environment.
 
@@ -177,7 +177,7 @@ function hosting_insite_queue($count) {
     // Harvest out the variables after bootstrap, which
     // may differ from the variables stored in the database.
     insite_inspect_variables_bootstrapped($site);
-    
+
     // Update the status table to indicate we've recently parsed this site.
     db_query('DELETE FROM {insite_status} WHERE nid = %d', $site->nid);
     db_query('INSERT INTO {insite_status} (nid, last_run) VALUES (%d, %d)', $site->nid, time());
@@ -194,14 +194,14 @@ function insite_inspect_variables_bootstrapped($site) {
 	// Get the correct alias for the site.
 	$site_name = hosting_context_name($site->nid);
 
-	// Build the drush command that will gather the variables of the target site.    
+	// Build the drush command that will gather the variables of the target site.
 	// Can't use 'drush variable-get' because even with the --backend option this
 	// command outputs the variables in human readable.
 	$eval = '\'global $conf; print serialize($conf);\'';
 	$cmd = sprintf("%s %s php-eval %s --backend", DRUSH_COMMAND, $site_name, $eval);
 
 	// Execute drush command and grab the output.
-	dlm("insite.module executing: $cmd"); 
+	dlm("insite.module executing: $cmd");
 	exec($cmd, $return, $code);
 
 	// Parse the output, first from drush --backend ...
@@ -217,11 +217,7 @@ function insite_inspect_variables_bootstrapped($site) {
 		// For simplicity just store simple data types.
 		// We want to pick up performance settings, etc.
 		if (!is_array($value) && !is_object($value)) {
-			db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value); 
+			db_query("INSERT INTO {insite_variable} (nid, name, value) VALUES (%d, '%s', '%s')", $site->nid, $name, $value);
 		}
-	} 
+	}
 }
- 
- 
- 
- 
